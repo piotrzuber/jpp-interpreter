@@ -6,7 +6,7 @@ Deklarowany język jest językiem imperatywnym bazującym na języku [Latte](htt
 - `string`;
 - `void`.
 
-Każda funkcja o innym typie niż `void` musi zwracać wynik typu zgodnego z zadeklarowanym. Język udostępnia podstawowe operacje arytmetyczne oraz operacje `if` i `while`. Możliwe jest w nim przekazywanie parametrów do funkcji zarówno poprzez wartość jak i referencję, która jest w nim oznaczana znakiem `&` po typie parametru jak w `C++`, a wiązanie zmiennych jest statyczne.
+Każda funkcja o innym typie niż `void` musi zwracać wynik typu zgodnego z zadeklarowanym. Język udostępnia podstawowe operacje arytmetyczne oraz operacje `if` i `while`, która została wzbogacona w instrukcje `break` oraz `continue`. Możliwe jest w nim przekazywanie parametrów do funkcji zarówno poprzez wartość jak i referencję, która jest w nim oznaczana znakiem `&` po typie parametru jak w `C++`, a wiązanie zmiennych jest statyczne.
 
 Tabela punktów
 -----
