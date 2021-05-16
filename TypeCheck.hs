@@ -43,7 +43,7 @@ updateFunTEnv :: FunId -> FunT -> Env -> Env
 updateFunTEnv fId fT (Env b l fe ve) = Env b l (Map.insert fId (fT, b) fe) ve
 
 updateVarTEnv :: VarId -> VarT -> Env -> Env
-updateVarTEnv vId vT (Enc b l fe ve) = Env b l fe (Map.insert vId (vT, b) ve)
+updateVarTEnv vId vT (Env b l fe ve) = Env b l fe (Map.insert vId (vT, b) ve)
 
 type TC = ReaderT Env (ExceptT TCError IO)
 
@@ -55,12 +55,12 @@ evalExpT ELitFalse = return BoolT
 evalExpT (EApp fId args) = getAppTFromEnv fId args
 evalExpT (EString _) = return StrT
 evalExpT (Neg exp) = ensureExpT exp IntT >> return IntT
-evalExpT (Not exp) = ensureExpT exp BoolT >> reutrn BoolT
+evalExpT (Not exp) = ensureExpT exp BoolT >> return BoolT
 evalExpT (EMul exp1 _ exp2) = ensureExpT exp1 IntT >> ensureExpT exp2 IntT >> return IntT
 evalExpT (EAdd exp1 _ exp2) = ensureExpT exp1 IntT >> ensureExpT exp2 IntT >> return IntT
 evalExpT (ERel exp1 _ exp2) = ensureExpT exp1 IntT >> ensureExpT exp2 IntT >> return BoolT
 evalExpT (EAnd exp1 exp2) = ensureExpT exp1 BoolT >> ensureExpT exp2 BoolT >> return BoolT
-evalExpT (EOr exp1 exp2) = ensureExpT exp1 BoolT >> ensureExpT exp2 BoolT >> reutrn BoolT
+evalExpT (EOr exp1 exp2) = ensureExpT exp1 BoolT >> ensureExpT exp2 BoolT >> return BoolT
 
 ensureT :: VarT -> VarT -> TC ()
 ensureT vt expectedT = unless (vt == expectedT) $ throwError $ OperationTMismatch expectedT vt
@@ -87,7 +87,7 @@ getFunTFromEnv fId = do
 getAppTFromEnv :: FunId -> [Expr] -> TC VarT
 getAppTFromEnv fId argsEx = do
     (argsExpectedT, retT) <- getFunTFromEnv fId
-    argsT <- MapM evalExpT argsEx
+    argsT <- mapM evalExpT argsEx
     if not (argsExpectedT == argsT)
         then throwError $ FunArgsTMismatch fId argsExpectedT argsT
         else return retT
@@ -98,7 +98,7 @@ evalStmtT (BStmt block) = do
     env <- ask 
     local (const $ incBlock env) (evalBlockT block)
 evalStmtT (Ass vId e) = ensureAssT vId e >> return Nothing
-evalStmtT (Ret e) = evalRetT e
+evalStmtT (Ret e) = evalRetExpT e
 evalStmtT VRet = return (Just VoidT)
 evalStmtT (Cond e s) = evalCondT e s
 evalStmtT (CondElse e s1 s2) = evalCondElseT e s1 s2
@@ -128,7 +128,7 @@ getTFromArg :: Arg -> Type
 getTFromArg (RefArg t _) = t
 getTFromArg (ValArg t _) = t
 
-castArgToVarDecl :: Arg -> VarDecl
+castArgToVarDecl :: Arg -> Decl
 castArgToVarDecl (RefArg t i) = VarDecl t i
 castArgToVarDecl (ValArg t i) = VarDecl t i 
 
@@ -142,15 +142,15 @@ handleDecl (FnDecl rT fId args b) = do
             else return $ updateFunTEnv fId (getFunT fType) env
         Nothing -> return $ updateFunTEnv fId (getFunT fType) env
     let setUpLocalFunEnv = incBlock $ disableLoop envFunId
-    localFunEnv <- local (const setUplocalFunEnv) (checkDecls $ map castArgToVarDecl args)
+    localFunEnv <- local (const setUpLocalFunEnv) (handleDecls $ map castArgToVarDecl args)
     blockT <- local (const localFunEnv) $ evalBlockT b
-    ensureFunRetT fId (fromMaybe VoidT blockT) (getVarT retType)
+    ensureFunRetT fId (fromMaybe VoidT blockT) (getVarT rT)
     return envFunId
 handleDecl (VarDecl vT vId) = do
     env <- ask
     case Map.lookup vId (varEnv env) of
         Just (varT, bl) -> if bl == block env
-            then throwError $ DoubleVarDecl varIdent pos
+            then throwError $ DoubleObjDecl vId
             else return $ updateVarTEnv vId (getVarT vT) env
         Nothing -> return $ updateVarTEnv vId (getVarT vT) env
 
@@ -173,14 +173,14 @@ ensureFunRetT fId t expectedT = unless (t == expectedT) $ throwError $ RetTMisma
 evalCondT :: Expr -> Stmt -> TC (Maybe VarT)
 evalCondT e s = do
     eT <- evalExpT e
-    if (BoolT = eT)
+    if BoolT == eT
         then evalStmtT s
         else throwError $ NonBoolCondition eT
 
 evalCondElseT :: Expr -> Stmt -> Stmt -> TC (Maybe VarT)
 evalCondElseT e s1 s2 = do
     eT <- evalExpT e
-    if (BoolT = eT)
+    if BoolT == eT
         then do
             sT1 <- evalStmtT s1
             sT2 <- evalStmtT s2
@@ -190,6 +190,7 @@ evalCondElseT e s1 s2 = do
                 (_, _) -> if sT1 == sT2
                     then return sT1
                     else throwError IfElseVagueRetT
+        else throwError $ NonBoolCondition eT
 
 evalWhileT :: Expr -> Stmt -> TC (Maybe VarT)
 evalWhileT e s = do
@@ -217,5 +218,5 @@ evalProgram (Prog ds) = do
         Just (fT, _) -> unless (fT == mainFunT) $ throwError $ UnexpectedMainFunT fT
         Nothing -> throwError NoMain
 
-typeCheck :: Program -> TC ()
+typeCheck :: Program -> ExceptT TCError IO ()
 typeCheck p = runReaderT (evalProgram p) (Env 0 False Map.empty Map.empty)
