@@ -141,7 +141,7 @@ handleDecl (FnDecl rT fId args b) = do
             then throwError $ DoubleObjDecl fId
             else return $ updateFunTEnv fId (getFunT fType) env
         Nothing -> return $ updateFunTEnv fId (getFunT fType) env
-    let setUpLocalFunEnv = incBlock $ disableLoop envFunId
+    let setUpLocalFunEnv = disableLoop $ incBlock envFunId
     localFunEnv <- local (const setUpLocalFunEnv) (handleDecls $ map castArgToVarDecl args)
     blockT <- local (const localFunEnv) $ evalBlockT b
     ensureFunRetT fId (fromMaybe VoidT blockT) (getVarT rT)
@@ -204,7 +204,9 @@ evalWhileT e s = do
 ensureInterrupt :: Inter -> TC ()
 ensureInterrupt i = do
     env <- ask
-    unless (loop env) $ throwError MisplacedInterruption
+    if loop env
+        then return ()
+        else throwError MisplacedInterruption
 
 ensurePrintT :: Expr -> TC ()
 ensurePrintT e = do

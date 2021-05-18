@@ -86,11 +86,13 @@ instance Show TCError where
     show VagueBlockT = "Ambigous return type in block statement"
 
 data RTError
-    = ArithmeticException
+    = DivideByZeroEx
     | BadRefException
     | MissingRetStmt FunId
+    | BreakLoop
+    | ContinueLoop
 
 instance Show RTError where
-    show ArithmeticException = "Runtime Error: Arithmetic exception"
-    show BadRefException = "Runtime Error: Attempt to pass an rvalue by reference"
-    show (MissingRetStmt f) = "Runtime Error: No return from non-void declared function " ++ showId f
+    show DivideByZeroEx = "Runtime Error. Divide by zero"
+    show BadRefException = "Runtime Error. Attempt to pass an rvalue by reference"
+    show (MissingRetStmt f) = "Runtime Error. No return from non-void declared function " ++ showId f

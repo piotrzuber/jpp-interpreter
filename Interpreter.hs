@@ -94,9 +94,11 @@ getMultiplicationV op e1 e2 = do
     case (eV1, eV2) of
         (IntV i1, IntV i2) -> case op of
             Div -> if i2 == 0
-                then throwError ArithmeticException
+                then throwError $ DivideByZeroEx
                 else return $ IntV (i1 `div` i2)
-            Mod -> return $ IntV (i1 `mod` i2)
+            Mod -> if i2 == 0
+                then throwError $ DivideByZeroEx
+                else return $ IntV (i1 `mod` i2)
             Times -> return $ IntV (i1 * i2)
         _ -> error "Wrong expression type for multiplication"
 
@@ -152,8 +154,18 @@ evalStmtV (Ret e) = do
 evalStmtV VRet = return $ Just VoidV
 evalStmtV (Cond e s) = evalCondV e s
 evalStmtV (CondElse e s1 s2) = evalCondElseV e s1 s2
-evalStmtV (While e s) = evalWhileV e s 
-evalStmtV (Interrupt i) = return Nothing
+evalStmtV w@(While e s) = do
+    eV <- evalExpV e 
+    case eV of 
+        BoolV True -> do
+            catchError (evalStmtV s >> evalStmtV w) (\ex -> case ex of
+                BreakLoop -> return Nothing
+                ContinueLoop -> evalStmtV w
+                err -> throwError err)
+        _ -> return Nothing 
+evalStmtV (Interrupt i) = case i of
+    Break -> throwError BreakLoop
+    Continue -> throwError ContinueLoop
 evalStmtV (SExp e) = evalExpV e >> return Nothing
 evalStmtV (Print e) = performPrint e >> return Nothing
 
@@ -172,10 +184,11 @@ foldStmts (Just sV) _ = return (Just sV)
 
 performAss :: VarId -> Expr -> Interpreter ()
 performAss vId e = do 
-    env <- ask
-    st <- get
     eV <- evalExpV e
-    put $ setLocVal (fromJust $ Map.lookup vId (varEnv env)) eV st
+    env <- ask
+    let Just loc = Map.lookup vId (varEnv env)
+    st <- get
+    put $ Store (freeLoc st) (Map.insert loc eV (store st))
 
 evalCondV :: Expr -> Stmt -> Interpreter (Maybe VarV)
 evalCondV e s = do 
@@ -192,14 +205,6 @@ evalCondElseV e s1 s2 = do
     if b
         then evalStmtV s1
         else evalStmtV s2
-
-evalWhileV :: Expr -> Stmt -> Interpreter (Maybe VarV)
-evalWhileV e s = do 
-    eV <- evalExpV e
-    let BoolV b = eV
-    if b 
-        then evalStmtsV [s, While e s]
-        else return Nothing
 
 performPrint :: Expr -> Interpreter ()
 performPrint e = do 
