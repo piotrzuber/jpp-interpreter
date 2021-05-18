@@ -158,14 +158,16 @@ evalStmtV w@(While e s) = do
     eV <- evalExpV e 
     case eV of 
         BoolV True -> do
-            catchError (evalStmtV s >> evalStmtV w) (\ex -> case ex of
-                BreakLoop -> return Nothing
-                ContinueLoop -> evalStmtV w
-                err -> throwError err)
+            sRet <- evalStmtV s
+            case sRet of 
+                Just BreakS -> return Nothing
+                Just ContinueS -> evalStmtV w
+                Nothing -> evalStmtV w
+                Just varV -> return $ Just varV
         _ -> return Nothing 
 evalStmtV (Interrupt i) = case i of
-    Break -> throwError BreakLoop
-    Continue -> throwError ContinueLoop
+    Break -> return $ Just BreakS
+    Continue -> return $ Just ContinueS
 evalStmtV (SExp e) = evalExpV e >> return Nothing
 evalStmtV (Print e) = performPrint e >> return Nothing
 

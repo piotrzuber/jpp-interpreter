@@ -24,12 +24,13 @@ showFunArgsT argsT = "(" ++ (intercalate ", " $ map show argsT) ++ ")"
 showFunT :: FunT -> String
 showFunT (argsT, retT) = showFunArgsT argsT ++ " -> " ++ show retT
 
-data VarV = BoolV Bool | IntV Integer | StrV String | VoidV
+data VarV = BoolV Bool | IntV Integer | StrV String | VoidV | BreakS | ContinueS
 instance Show VarV where
     show (BoolV v) = show v
     show (IntV v) = show v
     show (StrV v) = v
     show VoidV = error "Attempt to print void value"
+    show _ = ""
 
 type FunId = Ident
 type ObjId = Ident
@@ -64,7 +65,6 @@ data TCError
     | RetTMismatch FunId RetT RetT
     | UndeclaredObj ObjId
     | UnexpectedMainFunT FunT
-    | UnexpectedNonVoidRet FunId RetT
     | UnexpectedVoidExpRet
     | VagueBlockT
 
@@ -78,10 +78,9 @@ instance Show TCError where
     show (NonBoolCondition t) = "Non-bool type of conditional expression. Got: " ++ show t
     show (OperationTMismatch expectedT t) = "Operation type mismatch. Expected: " ++ show expectedT ++ ", got: " ++ show t
     show PrintArgTMismatch = "Void expression used as a print argument"
-    show (RetTMismatch f expectedT t) = "Return type mismatch in " ++ showId f ++ " . Expected: " ++ show expectedT ++ ", got: " ++ show t
+    show (RetTMismatch f expectedT t) = "Return type mismatch in " ++ showId f ++ ". Expected: " ++ show expectedT ++ ", got: " ++ show t
     show (UndeclaredObj o) = "Reference to undeclared object -- " ++ showId o
     show (UnexpectedMainFunT t) = "Unexpected main function signature. Expected: " ++ showFunT mainFunT ++ ", got: " ++ showFunT t
-    show (UnexpectedNonVoidRet f t) = "Non-void return in void declared function " ++ showId f ++ ". Got: " ++ show t
     show UnexpectedVoidExpRet = "Void type expression used with non-void return"
     show VagueBlockT = "Ambigous return type in block statement"
 
@@ -89,8 +88,6 @@ data RTError
     = DivideByZeroEx
     | BadRefException
     | MissingRetStmt FunId
-    | BreakLoop
-    | ContinueLoop
 
 instance Show RTError where
     show DivideByZeroEx = "Runtime Error. Divide by zero"
