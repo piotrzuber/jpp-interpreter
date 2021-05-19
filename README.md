@@ -8,6 +8,20 @@ Deklarowany język jest językiem imperatywnym bazującym na języku [Latte](htt
 
 Każda funkcja o innym typie niż `void` musi zwracać wynik typu zgodnego z zadeklarowanym. Język udostępnia podstawowe operacje arytmetyczne oraz operacje `if` i `while`, która została wzbogacona w instrukcje `break` oraz `continue`. Możliwe jest w nim przekazywanie parametrów do funkcji zarówno poprzez wartość jak i referencję, która jest w nim oznaczana znakiem `&` po typie parametru jak w `C++`, a wiązanie zmiennych jest statyczne.
 
+Implementacja
+-----
+### Opis plików
+- `Interpreter.hs` - właściwy plik z implementacją interpretera
+- `Main.hs` - plik początkowy
+- `TypeCheck.hs` - moduł zawierający implementację typowania statycznego
+- `Types.hs` - plik z typami pomocniczymi oraz definicjami błędów
+
+### Opis rozwiązanie
+Implementacja opiera się przede wszystkim na monadach `Reader` oraz `State` odpowiedzialnych odpowiednio za środowisko, czyli mapowanie nazw zmiennych w ich lokacje oraz za stan, czyli mape wartości zmiennych w pamięci oraz następne wolne miejsce w pamięci.
+
+### Kompilacja
+W celu skompilowania interpretera należy użyć polecenia `make` w katalogu z plikiem `Makefile`. Po ukończonym procesie kompilacji interpreter uruchamia się poleceniem `./interpreter <PATH>`, gdzie `<PATH>` to ścieżka do pliku zawierającego kod interpretowanego programu.
+
 Tabela punktów
 -----
 #### Na 15 punktów
@@ -47,7 +61,8 @@ void double_ref(int &x) {
 }
 
 int main() {
-    int x = 2;
+    int x;
+    x = 2;
     
     double_val(x);
     print(x);       // 2
@@ -60,14 +75,16 @@ int main() {
 #### Przykład 2. - funkcje zagnieżdżone, wiązanie statyczne, komentarze
 ```c
 int main() {
-    int x = 2;
+    int x;
+    x = 2;
     
     void double_x() {
         x = x + x;
     }
     
     void rwut() {
-        int x = 42;
+        int x;
+        x = 42;
         double_x();
         print(x);
     }
@@ -100,7 +117,8 @@ int fib(int n) {
 }
 
 int main() {
-    int f10 = fib(10);
+    int f10;
+    f10 = fib(10);
     print(f10);     // 55
     
     return 0;
